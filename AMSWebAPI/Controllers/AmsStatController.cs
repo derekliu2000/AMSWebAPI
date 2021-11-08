@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using System;
 
 // For more information on enabling Web API for empty projects, visit https://go.microsoft.com/fwlink/?LinkID=397860
@@ -12,10 +13,12 @@ namespace AMSWebAPI.Controllers
     [ApiController]
     public class AmsStatController : ControllerBase
     {
+        private readonly ILogger<AmsStatController> _logger;
         private readonly IConfiguration _configuration;
 
-        public AmsStatController(IConfiguration configuration)
+        public AmsStatController(ILogger<AmsStatController> logger, IConfiguration configuration)
         {
+            _logger = logger;
             _configuration = configuration;
         }
 
@@ -30,11 +33,13 @@ namespace AMSWebAPI.Controllers
                 statBuffer = new Buffer_Stat(value, Request.Headers["Data-Hash"]);
                 if (statBuffer.DBName == "")
                 {
+                    _logger.LogWarning($"new Buffer_SpecRef Hash Error({Request.Headers["DBName"]})");
                     return Ok("Hash Error");
                 }
             }
             catch (Exception e)
             {
+                _logger.LogError($"new Buffer_Stat exception({Request.Headers["DBName"]}): " + e.Message);
                 return Ok("new Buffer_Stat exception: " + e.Message);
             }
 
@@ -44,6 +49,7 @@ namespace AMSWebAPI.Controllers
             }
             catch (Exception e)
             {
+                _logger.LogError($"UpdateStat_SQL exception({Request.Headers["DBName"]}): " + e.Message);
                 return Ok("UpdateStat_SQL exception: " + e.Message);
             }
 

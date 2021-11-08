@@ -3,6 +3,7 @@ using API.Common.AMS;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -15,10 +16,12 @@ namespace AMSWebAPI.Controllers
     [ApiController]
     public class AmsJournalController : ControllerBase
     {
+        private readonly ILogger<AmsJournalController> _logger;
         private readonly IConfiguration _configuration;
 
-        public AmsJournalController(IConfiguration configuration)
+        public AmsJournalController(ILogger<AmsJournalController> logger, IConfiguration configuration)
         {
+            _logger = logger;
             _configuration = configuration;
         }
 
@@ -33,11 +36,13 @@ namespace AMSWebAPI.Controllers
                 maxUTCBuffer = new MaxUTCBuffer(p, Request.Headers["Data-Hash"]);
                 if (maxUTCBuffer.DBName == "")
                 {
+                    _logger.LogWarning($"new MaxUTCBuffer Hash Error({Request.Headers["DBName"]})");
                     return Ok("Hash Error");
                 }
             }
             catch (Exception e)
             {
+                _logger.LogError($"new MaxUTCBuffer exception({Request.Headers["DBName"]}): " + e.Message);
                 return BadRequest("new MaxUTCBuffer exception in GetJrnMaxUTC: " + e.Message);
             }
 
@@ -48,6 +53,7 @@ namespace AMSWebAPI.Controllers
             }
             catch (Exception ex)
             {
+                _logger.LogError($"Get Jrn Max UTC from DB exception({Request.Headers["DBName"]}): " + ex.Message);
                 return BadRequest("Get Jrn Max UTC from DB exception: " + ex.Message);
             }
         }
@@ -88,11 +94,13 @@ namespace AMSWebAPI.Controllers
                 journalBuffer = new Buffer_Journal(value, Request.Headers["Data-Hash"]);
                 if (journalBuffer.DBName == "")
                 {
+                    _logger.LogWarning($"new Buffer_Journal Hash Error({Request.Headers["DBName"]})");
                     return Ok("Hash Error");
                 }
             }
             catch (Exception e)
             {
+                _logger.LogError($"new Buffer_Journal exception({Request.Headers["DBName"]}): " + e.Message);
                 return Ok("new Buffer_Journal exception: " + e.Message);
             }
 
@@ -106,6 +114,7 @@ namespace AMSWebAPI.Controllers
             }
             catch (Exception e)
             {
+                _logger.LogError($"AddJournal_SQL exception({Request.Headers["DBName"]}): " + e.Message);
                 return Ok("AddJournal_SQL exception: " + e.Message);
             }
 

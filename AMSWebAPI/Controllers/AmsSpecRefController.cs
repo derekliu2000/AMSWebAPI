@@ -4,6 +4,7 @@ using API.Common.Utils;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Data;
 using System.Text;
@@ -16,10 +17,12 @@ namespace AMSWebAPI.Controllers
     [ApiController]
     public class AmsSpecRefController : ControllerBase
     {
+        private readonly ILogger<AmsSpecRefController> _logger;
         private readonly IConfiguration _configuration;
 
-        public AmsSpecRefController(IConfiguration configuration)
+        public AmsSpecRefController(ILogger<AmsSpecRefController> logger, IConfiguration configuration)
         {
+            _logger = logger;
             _configuration = configuration;
         }
 
@@ -36,11 +39,13 @@ namespace AMSWebAPI.Controllers
                 }
                 else
                 {
+                    _logger.LogWarning($"Exception: Hash Error({Request.Headers["DBName"]})");
                     return Ok("Exception: Hash Error");
                 }
             }
             catch (Exception ex)
             {
+                _logger.LogError($"Exception: GetSpecRefBinary()({Request.Headers["DBName"]}): " + ex.Message);
                 return Ok("Exception: GetSpecRefBinary()" + ex.Message);
             }
         }
@@ -81,11 +86,13 @@ namespace AMSWebAPI.Controllers
                 specRefBuffer = new Buffer_SpecRef(value, Request.Headers["Data-Hash"]);
                 if (specRefBuffer.DBName == "")
                 {
+                    _logger.LogWarning($"new Buffer_SpecRef Hash Error({Request.Headers["DBName"]})");
                     return Ok("Hash Error");
                 }
             }
             catch (Exception e)
             {
+                _logger.LogError($"new Buffer_SpecRef exception({Request.Headers["DBName"]}): " + e.Message);
                 return Ok("new Buffer_SpecRef exception: " + e.Message);
             }
 
@@ -95,6 +102,7 @@ namespace AMSWebAPI.Controllers
             }
             catch (Exception e)
             {
+                _logger.LogError($"AddSpecRef_SQL exception({Request.Headers["DBName"]}): " + e.Message);
                 return Ok("AddSpecRef_SQL exception: " + e.Message);
             }
 

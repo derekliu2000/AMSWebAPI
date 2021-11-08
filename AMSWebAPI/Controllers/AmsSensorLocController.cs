@@ -4,6 +4,7 @@ using API.Common.Utils;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Data;
 using System.Text;
@@ -16,10 +17,12 @@ namespace AMSWebAPI.Controllers
     [ApiController]
     public class AmsSensorLocController : ControllerBase
     {
+        private readonly ILogger<AmsSensorLocController> _logger;
         private readonly IConfiguration _configuration;
 
-        public AmsSensorLocController(IConfiguration configuration)
+        public AmsSensorLocController(ILogger<AmsSensorLocController> logger, IConfiguration configuration)
         {
+            _logger = logger;
             _configuration = configuration;
         }
 
@@ -36,12 +39,14 @@ namespace AMSWebAPI.Controllers
                 }
                 else
                 {
-                    return Ok("Exception: Hash Error");
+                    _logger.LogWarning("Hash Error in GetSensorLocBinary()");
+                    return Ok("Exception in GetSensorLocBinary(): Hash Error");
                 }
             }
             catch (Exception ex)
             {
-                return Ok("Exception: GetSensorLocBinary()" + ex.Message);
+                _logger.LogError("Exception: GetSensorLocBinary()" + ex.Message);
+                return Ok("Exception: GetSensorLocBinary(): " + ex.Message);
             }
         }
 
@@ -81,11 +86,13 @@ namespace AMSWebAPI.Controllers
                 sensorLocBuffer = new Buffer_SensorLoc(value, Request.Headers["Data-Hash"]);
                 if (sensorLocBuffer.DBName == "")
                 {
+                    _logger.LogWarning($"new Buffer_SensorLoc Hash Error({Request.Headers["DBName"]})");
                     return Ok("Hash Error");
                 }
             }
             catch (Exception e)
             {
+                _logger.LogError($"new Buffer_Bar exception({Request.Headers["DBName"]}): " + e.Message);
                 return Ok("new Buffer_Bar exception: " + e.Message);
             }
 
@@ -95,6 +102,7 @@ namespace AMSWebAPI.Controllers
             }
             catch (Exception e)
             {
+                _logger.LogError($"AddSensorLoc_SQL exception({Request.Headers["DBName"]}): " + e.Message);
                 return Ok("AddSensorLoc_SQL exception: " + e.Message);
             }
 

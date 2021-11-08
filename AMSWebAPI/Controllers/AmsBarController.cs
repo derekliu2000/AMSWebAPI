@@ -3,6 +3,7 @@ using API.Common.AMS;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using System;
 
 // For more information on enabling Web API for empty projects, visit https://go.microsoft.com/fwlink/?LinkID=397860
@@ -13,10 +14,12 @@ namespace AMSWebAPI.Controllers
     [ApiController]
     public class AmsBarController : ControllerBase
     {
+        private readonly ILogger<AmsBarController> _logger;
         private readonly IConfiguration _configuration;
 
-        public AmsBarController(IConfiguration configuration)
+        public AmsBarController(ILogger<AmsBarController> logger, IConfiguration configuration)
         {
+            _logger = logger;
             _configuration = configuration;
         }
 
@@ -31,11 +34,13 @@ namespace AMSWebAPI.Controllers
                 barBuffer = new Buffer_Bar(value, Request.Headers["Data-Hash"]);
                 if (barBuffer.DBName == "")
                 {
+                    _logger.LogWarning($"new Buffer_Bar Hash Error({Request.Headers["DBName"]})");
                     return Ok("Hash Error");
                 }
             }
             catch (Exception e)
             {
+                _logger.LogError($"new Buffer_Bar exception({Request.Headers["DBName"]}): " + e.Message);
                 return Ok("new Buffer_Bar exception: " + e.Message);
             }
             
@@ -45,6 +50,7 @@ namespace AMSWebAPI.Controllers
             }
             catch (Exception e)
             {
+                _logger.LogError($"UpdateBar_SQL exception({Request.Headers["DBName"]}): " + e.Message);
                 return Ok("UpdateBar_SQL exception: " + e.Message);
             }
 

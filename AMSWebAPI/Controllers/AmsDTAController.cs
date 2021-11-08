@@ -4,6 +4,7 @@ using API.Common.IO;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
@@ -17,10 +18,12 @@ namespace AMSWebAPI.Controllers
     [ApiController]
     public class AmsDTAController : ControllerBase
     {
+        private readonly ILogger<AmsDTAController> _logger;
         private readonly IConfiguration _configuration;
 
-        public AmsDTAController(IConfiguration configuration)
+        public AmsDTAController(ILogger<AmsDTAController> logger, IConfiguration configuration)
         {
+            _logger = logger;
             _configuration = configuration;
         }
 
@@ -34,11 +37,13 @@ namespace AMSWebAPI.Controllers
                 maxUTCBuffer = new MaxUTCBuffer(p, Request.Headers["Data-Hash"], 0);
                 if (maxUTCBuffer.DBName == "")
                 {
+                    _logger.LogWarning($"new MaxUTCBuffer Hash Error({Request.Headers["DBName"]})");
                     return Ok("Hash Error");
                 }
             }
             catch (Exception e)
             {
+                _logger.LogError($"new MaxUTCBuffer exception({Request.Headers["DBName"]}): " + e.Message);
                 return BadRequest("new MaxUTCBuffer exception in GetDTAMaxUTC: " + e.Message);
             }
 
@@ -53,6 +58,7 @@ namespace AMSWebAPI.Controllers
             }
             catch (Exception ex)
             {
+                _logger.LogError($"Get DTA Max UTC from DB exception({Request.Headers["DBName"]}): " + ex.Message);
                 return BadRequest("Get DTA Max UTC from DB exception: " + ex.Message);
             }
         }
@@ -112,11 +118,13 @@ namespace AMSWebAPI.Controllers
                 DTABuffer = new Buffer_DTA(value, Request.Headers["Data-Hash"]);
                 if (DTABuffer.DBName == "")
                 {
+                    _logger.LogWarning($"new Buffer_DTA Hash Error({Request.Headers["DBName"]})");
                     return Ok("Hash Error");
                 }
             }
             catch (Exception e)
             {
+                _logger.LogWarning($"new Buffer_DTA exception({Request.Headers["DBName"]}): " + e.Message);
                 return Ok("new Buffer_DTA exception: " + e.Message);
             }
 
@@ -132,6 +140,7 @@ namespace AMSWebAPI.Controllers
             }
             catch (Exception e)
             {
+                _logger.LogWarning($"AddWaveRecord_SQL exception({Request.Headers["DBName"]}): " + e.Message);
                 return Ok("AddWaveRecord_SQL exception: " + e.Message);
             }
         }

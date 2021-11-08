@@ -3,6 +3,7 @@ using API.Common.AMS;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -108,10 +109,12 @@ namespace AMSWebAPI.Controllers
     [ApiController]
     public class AmsRMSController : ControllerBase
     {
+        private readonly ILogger<AmsRMSController> _logger;
         private readonly IConfiguration _configuration;
 
-        public AmsRMSController(IConfiguration configuration)
+        public AmsRMSController(ILogger<AmsRMSController> logger, IConfiguration configuration)
         {
+            _logger = logger;
             _configuration = configuration;
         }
 
@@ -125,11 +128,13 @@ namespace AMSWebAPI.Controllers
                 maxUTCBuffer = new MaxUTCBuffer(p, Request.Headers["Data-Hash"]);
                 if (maxUTCBuffer.DBName == "")
                 {
+                    _logger.LogWarning($"new MaxUTCBuffer Hash Error({Request.Headers["DBName"]})");
                     return Ok("Hash Error");
                 }
             }
             catch (Exception e)
             {
+                _logger.LogError($"new MaxUTCBuffer exception in GetRMSMaxUTC({Request.Headers["DBName"]}): " + e.Message);
                 return BadRequest("new MaxUTCBuffer exception in GetRMSMaxUTC: " + e.Message);
             }
 
@@ -140,6 +145,7 @@ namespace AMSWebAPI.Controllers
             }
             catch (Exception ex)
             {
+                _logger.LogError($"Get RMS Max UTC from DB exception({Request.Headers["DBName"]}): " + ex.Message);
                 return BadRequest("Get RMS Max UTC from DB exception: " + ex.Message);
             }
         }
@@ -179,11 +185,13 @@ namespace AMSWebAPI.Controllers
                 rmsBuffer = new Buffer_RMS(value, Request.Headers["Data-Hash"]);
                 if (rmsBuffer.DBName == "")
                 {
+                    _logger.LogWarning($"new Buffer_RMS Hash Error({Request.Headers["DBName"]})");
                     return Ok("Hash Error");
                 }
             }
             catch (Exception e)
             {
+                _logger.LogError($"new Buffer_RMS exception({Request.Headers["DBName"]}): " + e.Message);
                 return Ok("new Buffer_RMS exception: " + e.Message);
             }
 
@@ -206,6 +214,7 @@ namespace AMSWebAPI.Controllers
             }
             catch (Exception ex)
             {
+                _logger.LogError($"AddOneRMSBlock exception({Request.Headers["DBName"]}): " + ex.Message);
                 return BadRequest(ex.Message);
             }
         }

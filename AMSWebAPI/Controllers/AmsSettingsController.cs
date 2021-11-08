@@ -3,6 +3,7 @@ using API.Common.IO;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Data;
 
@@ -12,10 +13,12 @@ namespace AMSWebAPI.Controllers
     [ApiController]
     public class AmsSettingsController : ControllerBase
     {
+        private readonly ILogger<AmsSettingsController> _logger;
         private readonly IConfiguration _configuration;
 
-        public AmsSettingsController(IConfiguration configuration)
+        public AmsSettingsController(ILogger<AmsSettingsController> logger, IConfiguration configuration)
         {
+            _logger = logger;
             _configuration = configuration;
         }
 
@@ -31,11 +34,13 @@ namespace AMSWebAPI.Controllers
                 settingBuffer = new SettingBuffer(zippedData, Request.Headers["Data-Hash"]);
                 if (settingBuffer.DBName == "")
                 {
+                    _logger.LogWarning($"new SettingBuffer Hash Error({Request.Headers["DBName"]})");
                     return Ok("Hash Error");
                 }
             }
             catch (Exception e)
             {
+                _logger.LogError($"new SettingBuffer exception({Request.Headers["DBName"]}): " + e.Message);
                 return Ok("new SettingBuffer exception: " + e.Message);
             }
 
@@ -45,6 +50,7 @@ namespace AMSWebAPI.Controllers
             }
             catch (Exception e)
             {
+                _logger.LogError($"UpdateSettings_SQL exception({Request.Headers["DBName"]}): " + e.Message);
                 return Ok("UpdateSettings_SQL exception: " + e.Message);
             }
 
