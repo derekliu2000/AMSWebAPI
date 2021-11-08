@@ -1,11 +1,10 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using Microsoft.AspNetCore.Http;
+﻿using API.Common.AMS;
+using API.Common.IO;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using AMSWebAPI.Models;
+using Microsoft.Data.SqlClient;
+using Microsoft.Extensions.Configuration;
+using System;
+using System.Data;
 
 namespace AMSWebAPI.Controllers
 {
@@ -13,105 +12,77 @@ namespace AMSWebAPI.Controllers
     [ApiController]
     public class AmsSettingsController : ControllerBase
     {
-        private readonly AMS_SiteContext _context;
+        private readonly IConfiguration _configuration;
 
-        public AmsSettingsController(AMS_SiteContext context)
+        public AmsSettingsController(IConfiguration configuration)
         {
-            _context = context;
+            _configuration = configuration;
         }
-
-        /*
-        // GET: api/AmsSettings
-        [HttpGet]
-        public async Task<ActionResult<IEnumerable<AmsSetting>>> GetAmsSettings()
-        {
-            return await _context.AmsSettings.ToListAsync();
-        }
-
-        // GET: api/AmsSettings/5
-        [HttpGet("{id}")]
-        public async Task<ActionResult<AmsSetting>> GetAmsSetting(int id)
-        {
-            var amsSetting = await _context.AmsSettings.FindAsync(id);
-
-            if (amsSetting == null)
-            {
-                return NotFound();
-            }
-
-            return amsSetting;
-        }
-
-        // PUT: api/AmsSettings/5
-        // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-        [HttpPut("{id}")]
-        public async Task<IActionResult> PutAmsSetting(int id, AmsSetting amsSetting)
-        {
-            if (id != amsSetting.Id)
-            {
-                return BadRequest();
-            }
-
-            _context.Entry(amsSetting).State = EntityState.Modified;
-
-            try
-            {
-                await _context.SaveChangesAsync();
-            }
-            catch (DbUpdateConcurrencyException)
-            {
-                if (!AmsSettingExists(id))
-                {
-                    return NotFound();
-                }
-                else
-                {
-                    throw;
-                }
-            }
-
-            return NoContent();
-        }
-        */
 
         // POST: api/AmsSettings
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPost]
-        public async Task<ActionResult<AmsSetting>> PostAmsSetting(DateTime LastModifiedUTC, [FromBody]string strAMSSetting)
+        public IActionResult PostAmsSetting([FromBody] string zippedData)
         {
-            _context.SetDatabase(Request);            
+            SettingBuffer settingBuffer;
 
-            AmsSetting amsSetting = new AmsSetting() { 
-                LastUpdateUtc = LastModifiedUTC, 
-                Settings = System.Convert.FromBase64String(strAMSSetting) 
-            };
-            _context.AmsSettings.Add(amsSetting);
-            await _context.SaveChangesAsync();
-
-            return CreatedAtAction("GetAmsSetting", new { id = amsSetting.Id }, amsSetting);
-        }
-
-        /*
-        // DELETE: api/AmsSettings/5
-        [HttpDelete("{id}")]
-        public async Task<IActionResult> DeleteAmsSetting(int id)
-        {
-            var amsSetting = await _context.AmsSettings.FindAsync(id);
-            if (amsSetting == null)
+            try
             {
-                return NotFound();
+                settingBuffer = new SettingBuffer(zippedData, Request.Headers["Data-Hash"]);
+                if (settingBuffer.DBName == "")
+                {
+                    return Ok("Hash Error");
+                }
+            }
+            catch (Exception e)
+            {
+                return Ok("new SettingBuffer exception: " + e.Message);
             }
 
-            _context.AmsSettings.Remove(amsSetting);
-            await _context.SaveChangesAsync();
+            try
+            {
+                UpdateSettings_SQL(settingBuffer);
+            }
+            catch (Exception e)
+            {
+                return Ok("UpdateSettings_SQL exception: " + e.Message);
+            }
 
-            return NoContent();
+            return Ok("Success");
         }
 
-        private bool AmsSettingExists(int id)
+        private void UpdateSettings_SQL(SettingBuffer settingBuffer)
         {
-            return _context.AmsSettings.Any(e => e.Id == id);
+            string DBHashString = "";
+            string connectionString = string.Format(_configuration.GetValue<string>("ConnectionStrings:SiteConnection"), settingBuffer.DBName);
+            using (SqlConnection sqlConn = new SqlConnection(connectionString))
+            {
+                sqlConn.Open();
+
+                SqlCommand sqlCmd = new SqlCommand();
+                sqlCmd.Connection = sqlConn;
+
+                DataSet ds = new DataSet();
+                sqlCmd.CommandText = "SELECT TOP 1 Settings FROM AMS_Settings ORDER BY LastUpdateUTC DESC";
+                SqlDataAdapter dataAdapter = new SqlDataAdapter(sqlCmd);
+                dataAdapter.Fill(ds);
+
+                if (ds != null && ds.Tables.Count > 0 && ds.Tables[0].Rows.Count > 0 && ds.Tables[0].Rows[0][0] != DBNull.Value)
+                {
+                    byte[] data = (byte[])ds.Tables[0].Rows[0][0];
+                    DBHashString = ArrayOperate.GetArrayHashString(data);
+                }
+
+                if (DBHashString != settingBuffer.checkSum)
+                {
+                    sqlCmd.Parameters.Clear();
+                    sqlCmd.CommandText = "INSERT INTO AMS_Settings (Settings,LastUpdateUTC) VALUES (@newSettings,@LastUpdateUTC)";
+                    sqlCmd.Parameters.Add("@newSettings", SqlDbType.VarBinary, settingBuffer.binaryZippedSettings.Length).Value = settingBuffer.binaryZippedSettings;
+                    sqlCmd.Parameters.AddWithValue("@LastUpdateUTC", settingBuffer.lastModifiedUTC);
+
+                    sqlCmd.ExecuteNonQuery();
+                }
+            }
         }
-        */
     }
 }

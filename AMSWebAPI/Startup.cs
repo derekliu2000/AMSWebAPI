@@ -22,7 +22,7 @@ namespace AMSWebAPI
         public void ConfigureServices(IServiceCollection services)
         {
             services.AddDbContext<AMS_SiteContext>(options => options.UseSqlServer(Configuration.GetConnectionString("DefaultConnection")));
-
+            
             services.AddControllers();
             services.AddSwaggerGen(c =>
             {
